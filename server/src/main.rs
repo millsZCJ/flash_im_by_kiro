@@ -1,4 +1,9 @@
-use axum::{routing::get, Json, Router};
+use axum::{
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    response::Html,
+    routing::get,
+    Json, Router,
+};
 use local_ip_address::local_ip;
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
@@ -50,6 +55,53 @@ async fn conversations() -> Json<Vec<Conversation>> {
     Json(data)
 }
 
+/// WebSocket 测试台页面
+async fn playground() -> Html<&'static str> {
+    Html(include_str!("ws_playground.html"))
+}
+
+/// WebSocket 升级入口
+async fn ws_handler(ws: WebSocketUpgrade) -> impl axum::response::IntoResponse {
+    ws.on_upgrade(handle_socket)
+}
+
+/// 处理单个 WebSocket 连接的完整生命周期
+async fn handle_socket(mut socket: WebSocket) {
+    println!("[WS] 客户端已连接");
+
+    if socket
+        .send(Message::Text("欢迎连接 Flash IM WebSocket 服务！".into()))
+        .await
+        .is_err()
+    {
+        println!("[WS] 发送欢迎消息失败，客户端已断开");
+        return;
+    }
+
+    loop {
+        match socket.recv().await {
+            Some(Ok(Message::Text(text))) => {
+                println!("[WS] 收到消息：{}", text);
+                let reply = format!("echo: {}", text);
+                if socket.send(Message::Text(reply.into())).await.is_err() {
+                    println!("[WS] 发送回复失败，客户端已断开");
+                    break;
+                }
+            }
+            Some(Ok(Message::Close(_))) | None => {
+                break;
+            }
+            Some(Ok(_)) => {}
+            Some(Err(e)) => {
+                println!("[WS] 连接错误：{}", e);
+                break;
+            }
+        }
+    }
+
+    println!("[WS] 客户端已断开");
+}
+
 #[tokio::main]
 async fn main() {
     let port = 3000;
@@ -62,6 +114,8 @@ async fn main() {
     let app = Router::new()
         .route("/v", get(version))
         .route("/conversation", get(conversations))
+        .route("/ws", get(ws_handler))
+        .route("/playground", get(playground))
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
@@ -74,6 +128,8 @@ async fn main() {
     }
     println!("本机访问  → http://127.0.0.1:{}", port);
     println!("会话接口  → http://127.0.0.1:{}/conversation", port);
+    println!("WebSocket → ws://127.0.0.1:{}/ws", port);
+    println!("WS 测试台 → http://127.0.0.1:{}/playground", port);
 
     axum::serve(listener, app).await.expect("服务启动失败");
 }

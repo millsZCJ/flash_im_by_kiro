@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/conversation_api.dart';
 import '../model/conversation.dart';
 import '../widget/conversation_item.dart';
+import '../../search/view/search_page.dart';
 
 class ConversationPage extends StatefulWidget {
   const ConversationPage({super.key});
@@ -37,6 +38,20 @@ class _ConversationPageState extends State<ConversationPage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF1A1A1A)),
+            onPressed: () {
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const SearchPage(),
+                  transitionsBuilder: (_, animation, __, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+                  transitionDuration: const Duration(milliseconds: 200),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.add_circle_outline,

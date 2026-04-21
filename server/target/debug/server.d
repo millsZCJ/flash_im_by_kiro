@@ -1,1 +1,1 @@
-/Users/jzkj/Projects/ChatProject/server/target/debug/server: /Users/jzkj/Projects/ChatProject/server/src/main.rs
+/Users/zcj/Documents/projects/flash_im_by_kiro/server/target/debug/server: /Users/zcj/Documents/projects/flash_im_by_kiro/server/src/main.rs /Users/zcj/Documents/projects/flash_im_by_kiro/server/src/ws_playground.html
