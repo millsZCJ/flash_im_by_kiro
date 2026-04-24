@@ -1,12 +1,20 @@
+mod auth;
+mod jwt;
+mod state;
+mod user;
+mod ws;
+
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::Html,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use local_ip_address::local_ip;
 use serde::Serialize;
+use state::AppState;
 use tower_http::cors::{Any, CorsLayer};
+
+// ─── 现有接口 ─────────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 struct VersionInfo {
@@ -30,7 +38,7 @@ struct Conversation {
 }
 
 async fn conversations() -> Json<Vec<Conversation>> {
-    let data = vec![
+    Json(vec![
         Conversation { title: "张伟", last_msg: "好的，明天见", time: "2026-04-07 09:01" },
         Conversation { title: "李娜", last_msg: "文件已发送", time: "2026-04-07 09:15" },
         Conversation { title: "王芳", last_msg: "收到，谢谢", time: "2026-04-07 09:30" },
@@ -51,60 +59,19 @@ async fn conversations() -> Json<Vec<Conversation>> {
         Conversation { title: "徐梅", last_msg: "好的我看看", time: "2026-04-07 14:00" },
         Conversation { title: "马超", last_msg: "部署完成", time: "2026-04-07 14:20" },
         Conversation { title: "朱婷", last_msg: "下班一起走？", time: "2026-04-07 14:35" },
-    ];
-    Json(data)
+    ])
 }
 
-/// WebSocket 测试台页面
 async fn playground() -> Html<&'static str> {
     Html(include_str!("ws_playground.html"))
 }
 
-/// WebSocket 升级入口
-async fn ws_handler(ws: WebSocketUpgrade) -> impl axum::response::IntoResponse {
-    ws.on_upgrade(handle_socket)
-}
-
-/// 处理单个 WebSocket 连接的完整生命周期
-async fn handle_socket(mut socket: WebSocket) {
-    println!("[WS] 客户端已连接");
-
-    if socket
-        .send(Message::Text("欢迎连接 Flash IM WebSocket 服务！".into()))
-        .await
-        .is_err()
-    {
-        println!("[WS] 发送欢迎消息失败，客户端已断开");
-        return;
-    }
-
-    loop {
-        match socket.recv().await {
-            Some(Ok(Message::Text(text))) => {
-                println!("[WS] 收到消息：{}", text);
-                let reply = format!("echo: {}", text);
-                if socket.send(Message::Text(reply.into())).await.is_err() {
-                    println!("[WS] 发送回复失败，客户端已断开");
-                    break;
-                }
-            }
-            Some(Ok(Message::Close(_))) | None => {
-                break;
-            }
-            Some(Ok(_)) => {}
-            Some(Err(e)) => {
-                println!("[WS] 连接错误：{}", e);
-                break;
-            }
-        }
-    }
-
-    println!("[WS] 客户端已断开");
-}
+// ─── 启动 ─────────────────────────────────────────────────────────────────────
 
 #[tokio::main]
 async fn main() {
     let port = 3000;
+    let state = AppState::new();
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -112,10 +79,18 @@ async fn main() {
         .allow_headers(Any);
 
     let app = Router::new()
+        // 基础接口
         .route("/v", get(version))
         .route("/conversation", get(conversations))
-        .route("/ws", get(ws_handler))
+        // WebSocket
+        .route("/ws", get(ws::ws_handler))
         .route("/playground", get(playground))
+        // 认证接口
+        .route("/auth/sms", post(auth::send_sms))
+        .route("/auth/login", post(auth::login))
+        // 用户接口
+        .route("/user/profile", get(user::get_profile))
+        .with_state(state)
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
@@ -130,6 +105,10 @@ async fn main() {
     println!("会话接口  → http://127.0.0.1:{}/conversation", port);
     println!("WebSocket → ws://127.0.0.1:{}/ws", port);
     println!("WS 测试台 → http://127.0.0.1:{}/playground", port);
+    println!("─────────────────────────────────────");
+    println!("发送验证码 → POST http://127.0.0.1:{}/auth/sms", port);
+    println!("登录      → POST http://127.0.0.1:{}/auth/login", port);
+    println!("用户信息  → GET  http://127.0.0.1:{}/user/profile", port);
 
     axum::serve(listener, app).await.expect("服务启动失败");
 }
