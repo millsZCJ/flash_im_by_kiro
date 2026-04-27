@@ -43,7 +43,7 @@ class _AuthGateState extends State<_AuthGate> {
         onSuccess: () => setState(() {}),
       );
     }
-    return ImShell(authApi: _api);
+    return ImShell(authApi: _api, onLogout: () => setState(() {}));
   }
 }
 

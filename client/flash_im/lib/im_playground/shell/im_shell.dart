@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../features/auth/api/auth_api.dart';
-import '../../im_playground_app.dart';
 import '../pages/chat_room_page.dart';
 import '../pages/profile_tab_page.dart';
 
 /// 主界面 Shell：底部导航栏（聊天室 + 我的）
 class ImShell extends StatefulWidget {
   final AuthApi authApi;
-  const ImShell({super.key, required this.authApi});
+  /// 退出登录回调，由 _AuthGate 传入，触发后重建到登录页
+  final VoidCallback onLogout;
+
+  const ImShell({super.key, required this.authApi, required this.onLogout});
 
   @override
   State<ImShell> createState() => _ImShellState();
@@ -25,7 +27,7 @@ class _ImShellState extends State<ImShell> {
           ChatRoomPage(authApi: widget.authApi),
           ProfileTabPage(
             authApi: widget.authApi,
-            onLogout: _onLogout,
+            onLogout: _handleLogout,
           ),
         ],
       ),
@@ -66,12 +68,9 @@ class _ImShellState extends State<ImShell> {
     );
   }
 
-  void _onLogout() {
+  void _handleLogout() {
     widget.authApi.logout();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const ImPlaygroundApp()),
-      (_) => false,
-    );
+    widget.onLogout(); // 通知 _AuthGate 重建，回到登录页
   }
 }
 
