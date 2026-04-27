@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'cases/fireworks_case.dart';
 import 'cases/conversation_case.dart';
 import 'cases/heartbeat_case.dart';
+import 'cases/auth_case.dart';
 
 void main() {
   runApp(const PlaygroundApp());
@@ -11,6 +12,7 @@ final _cases = [
   _Case(title: FireworksCase.title, builder: (_) => const FireworksCase()),
   _Case(title: ConversationCase.title, builder: (_) => const ConversationCase()),
   _Case(title: HeartbeatCase.title, builder: (_) => const HeartbeatCase()),
+  _Case(title: AuthCase.title, builder: (_) => const AuthCase()),
 ];
 
 class PlaygroundApp extends StatelessWidget {

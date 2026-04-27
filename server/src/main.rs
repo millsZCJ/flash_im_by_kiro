@@ -1,4 +1,5 @@
 mod auth;
+mod chat_room;
 mod jwt;
 mod state;
 mod user;
@@ -90,6 +91,8 @@ async fn main() {
         .route("/auth/login", post(auth::login))
         // 用户接口
         .route("/user/profile", get(user::get_profile))
+        // 聊天室 WebSocket（JWT 认证）
+        .route("/chat_room", get(chat_room::chat_room_handler))
         .with_state(state)
         .layer(cors);
 
@@ -109,6 +112,7 @@ async fn main() {
     println!("发送验证码 → POST http://127.0.0.1:{}/auth/sms", port);
     println!("登录      → POST http://127.0.0.1:{}/auth/login", port);
     println!("用户信息  → GET  http://127.0.0.1:{}/user/profile", port);
+    println!("聊天室    → WS   ws://127.0.0.1:{}/chat_room?token=<jwt>", port);
 
     axum::serve(listener, app).await.expect("服务启动失败");
 }

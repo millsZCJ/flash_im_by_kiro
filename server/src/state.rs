@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
+
+use crate::chat_room::{new_broadcast, RoomMessage};
 
 /// 内存中的用户记录
 #[derive(Clone, Debug)]
@@ -19,6 +22,8 @@ pub struct AppState {
     pub sms_codes: Arc<Mutex<HashMap<String, String>>>,
     /// JWT 签名密钥
     pub jwt_secret: String,
+    /// 聊天室广播发送端
+    pub room_tx: broadcast::Sender<RoomMessage>,
 }
 
 impl AppState {
@@ -27,6 +32,7 @@ impl AppState {
             users: Arc::new(Mutex::new(HashMap::new())),
             sms_codes: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret: "flash_im_dev_secret_2026".to_string(),
+            room_tx: new_broadcast(),
         }
     }
 }
