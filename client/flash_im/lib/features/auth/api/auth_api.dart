@@ -32,11 +32,24 @@ class AuthApi {
 
   // ── POST /auth/login ────────────────────────────────────────────────────────
 
-  /// 验证码登录，成功后自动保存 Token
+  /// 短信验证码登录，成功后自动保存 Token
   Future<LoginResult> login(String phone, String code) async {
     final resp = await _dio.post('/auth/login', data: {
+      'login_type': LoginType.sms.value,
       'phone': phone,
       'code': code,
+    });
+    final result = LoginResult.fromJson(resp.data as Map<String, dynamic>);
+    _token = result.token;
+    return result;
+  }
+
+  /// 密码登录，成功后自动保存 Token
+  Future<LoginResult> loginWithPassword(String phone, String password) async {
+    final resp = await _dio.post('/auth/login', data: {
+      'login_type': LoginType.password.value,
+      'phone': phone,
+      'password': password,
     });
     final result = LoginResult.fromJson(resp.data as Map<String, dynamic>);
     _token = result.token;

@@ -1,3 +1,13 @@
+/// 登录类型（与服务端 LoginType 枚举对应）
+enum LoginType {
+  /// 短信验证码登录
+  sms,
+  /// 密码登录
+  password;
+
+  String get value => name; // 序列化为 "sms" / "password"
+}
+
 /// 登录响应
 class LoginResult {
   final String token;

@@ -338,6 +338,163 @@ void main() {
     });
   });
 
+  // ── loginWithPassword ──────────────────────────────────────────────────────
+  group('AuthApi.loginWithPassword', () {
+    const mockToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.mock.signature';
+    const mockUserId = '9c5e836d-0f18-4bf7-9911-fa6df837fc71';
+
+    test('密码正确时登录成功，返回 LoginResult', () async {
+      final adapter = _MockAdapter();
+      adapter.on('POST', '/auth/login', (options) {
+        final data = options.data as Map<String, dynamic>;
+        expect(data['login_type'], 'password');
+        expect(data['phone'], '13800138000');
+        expect(data['password'], '123456');
+        return {
+          'token': mockToken,
+          'user_id': mockUserId,
+          'is_new_user': false,
+        };
+      });
+      final api = _makeApi(adapter);
+
+      final result = await api.loginWithPassword('13800138000', '123456');
+
+      expect(result.token, mockToken);
+      expect(result.userId, mockUserId);
+      expect(result.isNewUser, false);
+    });
+
+    test('密码登录成功后 token 保存到内存', () async {
+      final adapter = _MockAdapter();
+      adapter.onFixed('POST', '/auth/login', {
+        'token': mockToken,
+        'user_id': mockUserId,
+        'is_new_user': false,
+      });
+      final api = _makeApi(adapter);
+
+      expect(api.isLoggedIn, false);
+
+      await api.loginWithPassword('13800138000', '123456');
+
+      expect(api.token, mockToken);
+      expect(api.isLoggedIn, true);
+    });
+
+    test('密码错误时抛出 DioException（401）', () async {
+      final adapter = _MockAdapter();
+      adapter.onFixed(
+        'POST',
+        '/auth/login',
+        {'error': 'unauthorized'},
+        statusCode: 401,
+      );
+      final api = _makeApi(adapter);
+
+      expect(
+        () => api.loginWithPassword('13800138000', 'wrong_password'),
+        throwsA(isA<DioException>()),
+      );
+    });
+
+    test('密码错误后 token 不被设置', () async {
+      final adapter = _MockAdapter();
+      adapter.onFixed(
+        'POST',
+        '/auth/login',
+        {'error': 'unauthorized'},
+        statusCode: 401,
+      );
+      final api = _makeApi(adapter);
+
+      try {
+        await api.loginWithPassword('13800138000', 'wrong_password');
+      } catch (_) {}
+
+      expect(api.token, isNull);
+      expect(api.isLoggedIn, false);
+    });
+
+    test('请求体包含正确的 login_type 字段', () async {
+      final adapter = _MockAdapter();
+      String? capturedLoginType;
+
+      adapter.on('POST', '/auth/login', (options) {
+        final data = options.data as Map<String, dynamic>;
+        capturedLoginType = data['login_type'] as String?;
+        return {
+          'token': mockToken,
+          'user_id': mockUserId,
+          'is_new_user': false,
+        };
+      });
+      final api = _makeApi(adapter);
+
+      await api.loginWithPassword('13800138000', '123456');
+
+      expect(capturedLoginType, 'password');
+    });
+
+    test('请求体不包含 code 字段', () async {
+      final adapter = _MockAdapter();
+      bool? hasCodeField;
+
+      adapter.on('POST', '/auth/login', (options) {
+        final data = options.data as Map<String, dynamic>;
+        hasCodeField = data.containsKey('code');
+        return {
+          'token': mockToken,
+          'user_id': mockUserId,
+          'is_new_user': false,
+        };
+      });
+      final api = _makeApi(adapter);
+
+      await api.loginWithPassword('13800138000', '123456');
+
+      expect(hasCodeField, false);
+    });
+
+    test('密码登录后可正常获取用户信息', () async {
+      final adapter = _MockAdapter();
+      adapter.onFixed('POST', '/auth/login', {
+        'token': mockToken,
+        'user_id': mockUserId,
+        'is_new_user': false,
+      });
+      adapter.onFixed('GET', '/user/profile', {
+        'user_id': mockUserId,
+        'phone': '13800138000',
+        'nickname': '13800138000',
+        'avatar': 'https://api.dicebear.com/7.x/thumbs/svg?seed=$mockUserId',
+      });
+      final api = _makeApi(adapter);
+
+      await api.loginWithPassword('13800138000', '123456');
+      final profile = await api.getProfile();
+
+      expect(profile.userId, mockUserId);
+      expect(profile.phone, '13800138000');
+    });
+
+    test('密码登录后 logout 清除 token', () async {
+      final adapter = _MockAdapter();
+      adapter.onFixed('POST', '/auth/login', {
+        'token': mockToken,
+        'user_id': mockUserId,
+        'is_new_user': false,
+      });
+      final api = _makeApi(adapter);
+
+      await api.loginWithPassword('13800138000', '123456');
+      expect(api.isLoggedIn, true);
+
+      api.logout();
+      expect(api.isLoggedIn, false);
+    });
+  });
+
   // ── 完整登录流程 ────────────────────────────────────────────────────────────
   group('AuthApi 完整流程', () {
     test('sendSms → login → getProfile → logout 全流程', () async {
