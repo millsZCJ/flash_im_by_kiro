@@ -1,38 +1,33 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use sqlx::PgPool;
 use tokio::sync::broadcast;
 
 use crate::chat_room::{new_broadcast, RoomMessage};
 
-/// 内存中的用户记录
+/// 用户信息（供 profile 接口返回）
 #[derive(Clone, Debug)]
 pub struct User {
-    pub user_id: String,
+    pub user_id: i64,
     pub phone: String,
     pub nickname: String,
     pub avatar: String,
 }
 
-/// 全局共享状态（内存模拟，无数据库）
+/// 全局共享状态
 #[derive(Clone)]
 pub struct AppState {
-    /// phone → User
-    pub users: Arc<Mutex<HashMap<String, User>>>,
-    /// phone → 验证码（模拟短信服务）
-    pub sms_codes: Arc<Mutex<HashMap<String, String>>>,
+    /// PostgreSQL 连接池
+    pub db: PgPool,
     /// JWT 签名密钥
     pub jwt_secret: String,
     /// 聊天室广播发送端
     pub room_tx: broadcast::Sender<RoomMessage>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
-        Self {
-            users: Arc::new(Mutex::new(HashMap::new())),
-            sms_codes: Arc::new(Mutex::new(HashMap::new())),
-            jwt_secret: "flash_im_dev_secret_2026".to_string(),
-            room_tx: new_broadcast(),
-        }
+/// 创建 AppState，接收 PgPool 和 jwt_secret
+pub fn create_app_state(db: PgPool, jwt_secret: String) -> AppState {
+    AppState {
+        db,
+        jwt_secret,
+        room_tx: new_broadcast(),
     }
 }

@@ -1,5 +1,7 @@
 mod auth;
 mod chat_room;
+mod config;
+mod db;
 mod jwt;
 mod state;
 mod user;
@@ -12,6 +14,7 @@ use axum::{
 };
 use local_ip_address::local_ip;
 use serde::Serialize;
+use sqlx::postgres::PgPoolOptions;
 use state::AppState;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -71,14 +74,43 @@ async fn playground() -> Html<&'static str> {
 
 #[tokio::main]
 async fn main() {
-    let port = 3000;
-    let state = AppState::new();
+    // 1. 加载 .env 环境变量
+    dotenvy::dotenv().ok();
 
+    // 2. 加载配置
+    let config = config::Config::from_env().expect("加载配置失败");
+    let port = config.server_port;
+
+    // 3. 创建数据库连接池
+    println!("正在连接数据库：{}", config.database_url);
+    let db = PgPoolOptions::new()
+        .max_connections(config.db_pool_size)
+        .connect(&config.database_url)
+        .await
+        .expect("数据库连接失败，请检查 PostgreSQL 是否启动及 DATABASE_URL 配置");
+
+    // 4. 运行数据库迁移
+    sqlx::migrate!("./migrations")
+        .run(&db)
+        .await
+        .expect("数据库迁移失败");
+
+    println!("Database connected ✓");
+
+    // 5. 创建 AppState
+    let state = AppState {
+        db,
+        jwt_secret: config.jwt_secret.clone(),
+        room_tx: chat_room::new_broadcast(),
+    };
+
+    // 6. CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // 7. 路由
     let app = Router::new()
         // 基础接口
         .route("/v", get(version))
@@ -89,8 +121,9 @@ async fn main() {
         // 认证接口
         .route("/auth/sms", post(auth::send_sms))
         .route("/auth/login", post(auth::login))
+        .route("/auth/password", post(auth::set_password))
         // 用户接口
-        .route("/user/profile", get(user::get_profile))
+        .route("/user/profile", get(auth::profile))
         // 聊天室 WebSocket（JWT 认证）
         .route("/chat_room", get(chat_room::chat_room_handler))
         .with_state(state)
@@ -111,6 +144,7 @@ async fn main() {
     println!("─────────────────────────────────────");
     println!("发送验证码 → POST http://127.0.0.1:{}/auth/sms", port);
     println!("登录      → POST http://127.0.0.1:{}/auth/login", port);
+    println!("设置密码  → POST http://127.0.0.1:{}/auth/password", port);
     println!("用户信息  → GET  http://127.0.0.1:{}/user/profile", port);
     println!("聊天室    → WS   ws://127.0.0.1:{}/chat_room?token=<jwt>", port);
 

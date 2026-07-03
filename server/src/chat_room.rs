@@ -73,19 +73,37 @@ pub async fn chat_room_handler(
         }
     };
 
-    let user_id = claims.sub.clone();
+    let user_id_str = claims.sub.clone();
 
-    // 从内存中查找用户昵称
-    let nickname = {
-        let users = state.users.lock().unwrap();
-        users
-            .values()
-            .find(|u| u.user_id == user_id)
-            .map(|u| u.nickname.clone())
-            .unwrap_or_else(|| user_id.clone())
+    // 解析 account_id
+    let account_id: i64 = match user_id_str.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            println!("[ROOM] 拒绝连接：account_id 解析失败 - {}", user_id_str);
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
     };
 
-    println!("[ROOM] 用户 {} ({}) 连接", nickname, user_id);
+    // 从数据库查询用户昵称
+    let nickname = match sqlx::query_scalar::<_, String>(
+        "SELECT nickname FROM user_profiles WHERE account_id = $1",
+    )
+    .bind(account_id)
+    .fetch_optional(&state.db)
+    .await
+    {
+        Ok(Some(n)) => n,
+        Ok(None) => {
+            println!("[ROOM] 用户不存在：account_id={}", account_id);
+            return StatusCode::UNAUTHORIZED.into_response();
+        }
+        Err(e) => {
+            println!("[ROOM] 查询用户昵称失败：{}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    println!("[ROOM] 用户 {} ({}) 连接", nickname, account_id);
 
     let tx = state.room_tx.clone();
     ws.on_upgrade(move |socket| handle_room(socket, nickname, tx))
