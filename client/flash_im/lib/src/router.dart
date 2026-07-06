@@ -1,9 +1,8 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 
+import 'package:flash_auth/flash_auth.dart';
 import 'package:flash_im/src/starter/data/repository/startup_repository.dart';
-import 'package:flash_im/src/auth/data/repository/auth_repository.dart';
-import 'package:flash_im/src/auth/view/login_page.dart';
 import 'package:flash_im/src/starter/view/splash_page.dart';
 import 'package:flash_im/src/home/view/home_page.dart';
 import 'package:flash_im/src/home/profile/set_password_page.dart';

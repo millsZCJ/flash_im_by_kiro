@@ -1,0 +1,13 @@
+name: flash_core
+description: Shared infrastructure for Flash IM packages — models, config, network.
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  dio: ^5.7.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0

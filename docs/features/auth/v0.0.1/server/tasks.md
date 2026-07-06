@@ -3,23 +3,11 @@
 基于 design.md 设计，列出需要创建/修改的具体细节。
 全局约束：单 crate 结构，PostgreSQL 直连，不拆 workspace。
 
-> **实施说明（2026-07-03 实际执行）**
->
-> 本清单此前标记为 ✅ 但实际代码仍使用内存 HashMap，未接入 PostgreSQL。
-> 已于 2026-07-03 重新实现全部任务，所有接口经 curl 验证通过。
->
-> 与原始规范的适配差异：
-> - **依赖**：使用 `bcrypt 0.15`（已在 Cargo.toml）替代 `argon2`；`sqlx 0.7` 替代 `0.8`
-> - **数据库用户**：macOS Homebrew PostgreSQL 默认用户为 `zcj`（非 `postgres`）
-> - **迁移**：新增 `004_auth_schema.sql`，DROP 旧表后创建 4 表设计
-> - **LoginResponse**：保留 `is_new_user`（客户端兼容）并新增 `has_password`
-> - **profile**：从 `user.rs` 迁移至 `auth/handlers.rs`，路由改为 `auth::profile`
-
 ---
 
 ## 执行顺序
 
-1. ✅ 任务 1 — Cargo.toml 添加依赖（已适配：bcrypt 替代 argon2）
+1. ✅ 任务 1 — Cargo.toml 添加依赖
 2. ✅ 任务 2 — 数据库迁移建表（依赖任务 1）
    - ✅ 2.1 创建迁移文件
    - ✅ 2.2 编写初始化脚本

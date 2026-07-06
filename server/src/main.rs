@@ -1,11 +1,36 @@
-mod auth;
+use axum::extract::FromRef;
+use sqlx::PgPool;
+use tokio::sync::broadcast;
+
+use flash_core::Config;
+use flash_auth::AuthState;
+
 mod chat_room;
-mod config;
-mod db;
-mod jwt;
-mod state;
-mod user;
 mod ws;
+
+use chat_room::{new_broadcast, RoomMessage};
+
+// ─── AppState ─────────────────────────────────────────────────────────────────
+
+/// 全局共享状态（主 APP 专有，包含 chat_room 的广播频道）
+#[derive(Clone)]
+struct AppState {
+    db: PgPool,
+    jwt_secret: String,
+    room_tx: broadcast::Sender<RoomMessage>,
+}
+
+/// AuthState 自动从 AppState 提取 —— auth 模块无需了解完整 AppState 结构
+impl FromRef<AppState> for AuthState {
+    fn from_ref(state: &AppState) -> AuthState {
+        AuthState {
+            db: state.db.clone(),
+            jwt_secret: state.jwt_secret.clone(),
+        }
+    }
+}
+
+// ─── 现有接口 ─────────────────────────────────────────────────────────────────
 
 use axum::{
     response::Html,
@@ -14,11 +39,6 @@ use axum::{
 };
 use local_ip_address::local_ip;
 use serde::Serialize;
-use sqlx::postgres::PgPoolOptions;
-use state::AppState;
-use tower_http::cors::{Any, CorsLayer};
-
-// ─── 现有接口 ─────────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 struct VersionInfo {
@@ -74,57 +94,41 @@ async fn playground() -> Html<&'static str> {
 
 #[tokio::main]
 async fn main() {
-    // 1. 加载 .env 环境变量
     dotenvy::dotenv().ok();
 
-    // 2. 加载配置
-    let config = config::Config::from_env().expect("加载配置失败");
+    let config = Config::from_env().expect("加载配置失败");
     let port = config.server_port;
 
-    // 3. 创建数据库连接池
     println!("正在连接数据库：{}", config.database_url);
-    let db = PgPoolOptions::new()
+    let db = sqlx::postgres::PgPoolOptions::new()
         .max_connections(config.db_pool_size)
         .connect(&config.database_url)
         .await
-        .expect("数据库连接失败，请检查 PostgreSQL 是否启动及 DATABASE_URL 配置");
+        .expect("数据库连接失败");
 
-    // 4. 运行数据库迁移
-    sqlx::migrate!("./migrations")
-        .run(&db)
-        .await
-        .expect("数据库迁移失败");
-
+    sqlx::migrate!("./migrations").run(&db).await.expect("数据库迁移失败");
     println!("Database connected ✓");
 
-    // 5. 创建 AppState
     let state = AppState {
         db,
         jwt_secret: config.jwt_secret.clone(),
-        room_tx: chat_room::new_broadcast(),
+        room_tx: new_broadcast(),
     };
 
-    // 6. CORS
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
 
-    // 7. 路由
     let app = Router::new()
-        // 基础接口
         .route("/v", get(version))
         .route("/conversation", get(conversations))
-        // WebSocket
         .route("/ws", get(ws::ws_handler))
         .route("/playground", get(playground))
-        // 认证接口
-        .route("/auth/sms", post(auth::send_sms))
-        .route("/auth/login", post(auth::login))
-        .route("/auth/password", post(auth::set_password))
-        // 用户接口
-        .route("/user/profile", get(auth::profile))
-        // 聊天室 WebSocket（JWT 认证）
+        .route("/auth/sms", post(flash_auth::send_sms))
+        .route("/auth/login", post(flash_auth::login))
+        .route("/auth/password", post(flash_auth::set_password))
+        .route("/user/profile", get(flash_auth::profile))
         .route("/chat_room", get(chat_room::chat_room_handler))
         .with_state(state)
         .layer(cors);
@@ -138,9 +142,6 @@ async fn main() {
         Err(_) => println!("服务已启动 → http://127.0.0.1:{}", port),
     }
     println!("本机访问  → http://127.0.0.1:{}", port);
-    println!("会话接口  → http://127.0.0.1:{}/conversation", port);
-    println!("WebSocket → ws://127.0.0.1:{}/ws", port);
-    println!("WS 测试台 → http://127.0.0.1:{}/playground", port);
     println!("─────────────────────────────────────");
     println!("发送验证码 → POST http://127.0.0.1:{}/auth/sms", port);
     println!("登录      → POST http://127.0.0.1:{}/auth/login", port);

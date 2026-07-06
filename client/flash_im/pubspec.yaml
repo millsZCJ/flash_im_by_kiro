@@ -41,6 +41,12 @@ dependencies:
   equatable: ^2.0.5
   shared_preferences: ^2.3.2
 
+  # 本地模块
+  flash_core:
+    path: ../modules/flash_core
+  flash_auth:
+    path: ../modules/flash_auth
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

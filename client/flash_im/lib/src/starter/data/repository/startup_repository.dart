@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flash_im/src/domain/model/user.dart';
+import 'package:flash_core/flash_core.dart';
 
 // ─── 启动事件 ─────────────────────────────────────────────────────────────────
 

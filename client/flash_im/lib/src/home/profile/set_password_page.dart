@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 
-import 'package:flash_im/src/auth/logic/auth/auth_cubit.dart';
-import 'package:flash_im/src/auth/data/repository/auth_repository.dart';
-import 'package:flash_im/src/auth/view/components/labeled_input.dart';
-import 'package:flash_im/src/auth/view/components/action_button.dart';
+import 'package:flash_auth/flash_auth.dart';
 
 /// 密码设置独立页面 — Navigator.push 进入
 class SetPasswordPage extends StatefulWidget {

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:flash_im/src/auth/logic/auth/auth_cubit.dart';
-import 'package:flash_im/src/auth/logic/auth/auth_state.dart';
+import 'package:flash_auth/flash_auth.dart';
 import 'package:flash_im/src/home/profile/profile_page.dart';
 import 'package:flash_im/src/home/profile/set_password_page.dart';
 

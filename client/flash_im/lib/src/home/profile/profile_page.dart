@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:flash_im/src/auth/logic/auth/auth_cubit.dart';
-import 'package:flash_im/src/auth/logic/auth/auth_state.dart';
+import 'package:flash_auth/flash_auth.dart';
 import 'package:flash_im/src/home/profile/set_password_page.dart';
 
 /// "我的"页面 — 微信风格列表布局

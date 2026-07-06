@@ -3,9 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'src/app.dart';
 import 'src/router.dart';
-import 'src/network/http_client.dart';
-import 'src/auth/data/repository/auth_repository.dart';
-import 'src/auth/logic/auth/auth_cubit.dart';
+import 'package:flash_core/flash_core.dart';
+import 'package:flash_auth/flash_auth.dart';
 import 'src/starter/data/repository/startup_repository.dart';
 
 void main() async {
