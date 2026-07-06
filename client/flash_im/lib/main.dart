@@ -1,22 +1,46 @@
 import 'package:flutter/material.dart';
-import 'shared/view/main_shell.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'src/app.dart';
+import 'src/router.dart';
+import 'src/network/http_client.dart';
+import 'src/auth/data/repository/auth_repository.dart';
+import 'src/auth/logic/auth/auth_cubit.dart';
+import 'src/starter/data/repository/startup_repository.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flash IM',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF07C160)),
-      ),
-      home: const MainShell(),
-    );
-  }
+  // 1. 基础设施
+  final httpClient = HttpClient(
+    tokenProvider: () => '',
+    onUnauthorized: () {},
+  );
+  final authRepository = AuthRepository(dio: httpClient.dio);
+
+  // 2. 状态管理
+  final authCubit = AuthCubit(authRepository: authRepository);
+  final startupRepository = StartupRepository();
+
+  // 3. 回调连接：TokenProvider + OnUnauthorized
+  httpClient.tokenProvider = () => authRepository.token ?? authCubit.state.token ?? '';
+  httpClient.onUnauthorized = () => authCubit.logout();
+
+  // 4. 路由
+  final router = createRouter(
+    startupRepository: startupRepository,
+    authRepository: authRepository,
+    onStartupComplete: (result) => authCubit.applyStartupSnapshot(
+      token: result.token,
+      user: result.user,
+      hasPassword: result.hasPassword,
+    ),
+  );
+
+  runApp(
+    BlocProvider.value(
+      value: authCubit,
+      child: FlashApp(router: router),
+    ),
+  );
 }
