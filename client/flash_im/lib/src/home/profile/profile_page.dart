@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flash_auth/flash_auth.dart';
-import 'package:flash_im/src/home/profile/set_password_page.dart';
+import 'package:flash_session/flash_session.dart';
 
-/// "我的"页面 — 微信风格列表布局
+/// "我的"页面 — 微信风格，使用 UserCard 组件
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -32,9 +32,18 @@ class ProfilePage extends StatelessWidget {
     final user = state.user!;
     return ListView(
       children: [
-        _buildUserCard(user),
+        // 用户卡片：点击跳转 EditProfilePage
+        UserCard(
+          user: user,
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: context.read<SessionCubit>(),
+              child: const EditProfilePage(),
+            ),
+          )),
+        ),
         const SizedBox(height: 12),
-        _buildInfoSection(user, state.hasPassword, context),
+        _buildInfoSection(state.hasPassword, context),
         const SizedBox(height: 24),
         _buildLogoutButton(context),
         const SizedBox(height: 32),
@@ -42,34 +51,19 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildUserCard(dynamic user) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        children: [
-          Container(width: 64, height: 64, decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: const Color(0xFFE8F5E9)),
-            child: ClipRRect(borderRadius: BorderRadius.circular(8),
-              child: Image.network(user.avatar, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Center(child: Text(user.nickname.isNotEmpty ? user.nickname[0] : '?', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFF07C160))))))),
-          const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(user.nickname, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
-            const SizedBox(height: 4),
-            Text('ID: ${user.userId.substring(0, 8)}', style: const TextStyle(fontSize: 13, color: Color(0xFF888888))),
-          ])),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFCCCCCC)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoSection(dynamic user, bool hasPassword, BuildContext context) {
+  Widget _buildInfoSection(bool hasPassword, BuildContext context) {
     return Container(color: Colors.white, child: Column(children: [
-      _InfoRow(icon: Icons.phone_outlined, iconColor: const Color(0xFF07C160), label: '手机号', value: user.phone),
+      _InfoRow(icon: Icons.phone_outlined, iconColor: const Color(0xFF07C160), label: '手机号', value: _maskPhone(context.read<AuthCubit>().state.user?.phone ?? '')),
       const Divider(height: 1, indent: 56, color: Color(0xFFF0F0F0)),
-      _InfoRow(icon: Icons.lock_outline, iconColor: const Color(0xFF07C160), label: hasPassword ? '修改密码' : '设置密码', value: '',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SetPasswordPage()))),
+      _InfoRow(icon: Icons.lock_outline, iconColor: const Color(0xFF07C160),
+        label: hasPassword ? '修改密码' : '设置密码', value: '',
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<SessionCubit>(),
+            child: hasPassword ? const ChangePasswordPage() : const SetPasswordPage(),
+          ),
+        )),
+      ),
     ]));
   }
 
@@ -80,6 +74,11 @@ class ProfilePage extends StatelessWidget {
         child: const Text('退出登录', style: TextStyle(fontSize: 16, color: Color(0xFFE53935))),
       ),
     );
+  }
+
+  String _maskPhone(String phone) {
+    if (phone.length < 5) return phone;
+    return '${phone.substring(0, 3)}****${phone.substring(phone.length - 2)}';
   }
 }
 

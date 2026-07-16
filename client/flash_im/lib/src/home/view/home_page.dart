@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flash_auth/flash_auth.dart';
+import 'package:flash_session/flash_session.dart';
+import 'package:flash_im_core/flash_im_core.dart';
 import 'package:flash_im/src/home/profile/profile_page.dart';
-import 'package:flash_im/src/home/profile/set_password_page.dart';
 
 /// 三 Tab 主 Shell — 消息 / 通讯录 / 我的
 class HomePage extends StatefulWidget {
@@ -42,7 +43,15 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('跳过', style: TextStyle(color: Color(0xFF999999)))),
           ElevatedButton(
-            onPressed: () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const SetPasswordPage())); },
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<SessionCubit>(),
+                  child: const SetPasswordPage(),
+                ),
+              ));
+            },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF07C160), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             child: const Text('去设置'),
           ),
@@ -54,12 +63,23 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
+      body: Column(
         children: [
-          const Center(child: Text('暂无消息', style: TextStyle(fontSize: 16, color: Color(0xFF999999)))),
-          const Center(child: Text('暂无联系人', style: TextStyle(fontSize: 16, color: Color(0xFF999999)))),
-          const ProfilePage(),
+          WsStatusIndicator(
+            stateStream: context.read<WsClient>().stateStream,
+            initialState: context.read<WsClient>().state,
+            onTapReconnect: () => context.read<WsClient>().connect(),
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: [
+                const Center(child: Text('暂无消息', style: TextStyle(fontSize: 16, color: Color(0xFF999999)))),
+                const Center(child: Text('暂无联系人', style: TextStyle(fontSize: 16, color: Color(0xFF999999)))),
+                const ProfilePage(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

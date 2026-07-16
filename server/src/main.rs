@@ -1,29 +1,33 @@
 use axum::extract::FromRef;
 use sqlx::PgPool;
-use tokio::sync::broadcast;
 
 use flash_core::Config;
 use flash_auth::AuthState;
-
-mod chat_room;
-mod ws;
-
-use chat_room::{new_broadcast, RoomMessage};
+use flash_user::UserState;
 
 // ─── AppState ─────────────────────────────────────────────────────────────────
 
-/// 全局共享状态（主 APP 专有，包含 chat_room 的广播频道）
+/// 全局共享状态
 #[derive(Clone)]
 struct AppState {
     db: PgPool,
     jwt_secret: String,
-    room_tx: broadcast::Sender<RoomMessage>,
 }
 
 /// AuthState 自动从 AppState 提取 —— auth 模块无需了解完整 AppState 结构
 impl FromRef<AppState> for AuthState {
     fn from_ref(state: &AppState) -> AuthState {
         AuthState {
+            db: state.db.clone(),
+            jwt_secret: state.jwt_secret.clone(),
+        }
+    }
+}
+
+/// UserState 自动从 AppState 提取 —— user 模块无需了解完整 AppState 结构
+impl FromRef<AppState> for UserState {
+    fn from_ref(state: &AppState) -> UserState {
+        UserState {
             db: state.db.clone(),
             jwt_secret: state.jwt_secret.clone(),
         }
@@ -112,7 +116,6 @@ async fn main() {
     let state = AppState {
         db,
         jwt_secret: config.jwt_secret.clone(),
-        room_tx: new_broadcast(),
     };
 
     let cors = tower_http::cors::CorsLayer::new()
@@ -123,13 +126,14 @@ async fn main() {
     let app = Router::new()
         .route("/v", get(version))
         .route("/conversation", get(conversations))
-        .route("/ws", get(ws::ws_handler))
+        .route("/ws/im", get(im_ws::handler::ws_handler))
         .route("/playground", get(playground))
+        // auth 路由
         .route("/auth/sms", post(flash_auth::send_sms))
         .route("/auth/login", post(flash_auth::login))
-        .route("/auth/password", post(flash_auth::set_password))
-        .route("/user/profile", get(flash_auth::profile))
-        .route("/chat_room", get(chat_room::chat_room_handler))
+        // user 路由（按 design.md 规范注册）
+        .route("/user/profile", get(flash_user::handlers::profile).put(flash_user::handlers::update_profile))
+        .route("/user/password", post(flash_user::handlers::set_password).put(flash_user::handlers::change_password))
         .with_state(state)
         .layer(cors);
 
@@ -143,11 +147,13 @@ async fn main() {
     }
     println!("本机访问  → http://127.0.0.1:{}", port);
     println!("─────────────────────────────────────");
-    println!("发送验证码 → POST http://127.0.0.1:{}/auth/sms", port);
-    println!("登录      → POST http://127.0.0.1:{}/auth/login", port);
-    println!("设置密码  → POST http://127.0.0.1:{}/auth/password", port);
-    println!("用户信息  → GET  http://127.0.0.1:{}/user/profile", port);
-    println!("聊天室    → WS   ws://127.0.0.1:{}/chat_room?token=<jwt>", port);
+    println!("发送验证码   → POST http://127.0.0.1:{}/auth/sms", port);
+    println!("登录        → POST http://127.0.0.1:{}/auth/login", port);
+    println!("用户信息    → GET  http://127.0.0.1:{}/user/profile", port);
+    println!("编辑资料    → PUT  http://127.0.0.1:{}/user/profile", port);
+    println!("设置密码    → POST http://127.0.0.1:{}/user/password", port);
+    println!("修改密码    → PUT  http://127.0.0.1:{}/user/password", port);
+    println!("IM WebSocket → WS   ws://127.0.0.1:{}/ws/im", port);
 
     axum::serve(listener, app).await.expect("服务启动失败");
 }

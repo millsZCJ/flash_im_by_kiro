@@ -1,6 +1,7 @@
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use axum::http::{HeaderMap, StatusCode};
 
 /// 获取当前 Unix 时间戳（秒）
 fn now_secs() -> u64 {
@@ -57,4 +58,20 @@ pub fn verify_token(token: &str, secret: &str) -> Result<Claims, jsonwebtoken::e
     )?;
 
     Ok(token_data.claims)
+}
+
+/// 从 Authorization header 解析 Token，返回 account_id
+///
+/// 供 flash_auth、flash_user 等模块共用，消除重复实现。
+/// jwt_secret 由调用方传入（各模块的 State 中持有）。
+pub fn extract_user_id(headers: &HeaderMap, jwt_secret: &str) -> Result<i64, StatusCode> {
+    let token = headers
+        .get("Authorization")
+        .or_else(|| headers.get("authorization"))
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    let claims = verify_token(token, jwt_secret).map_err(|_| StatusCode::UNAUTHORIZED)?;
+    claims.sub.parse::<i64>().map_err(|_| StatusCode::UNAUTHORIZED)
 }

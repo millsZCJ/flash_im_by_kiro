@@ -5,7 +5,6 @@ import 'package:flash_auth/flash_auth.dart';
 import 'package:flash_im/src/starter/data/repository/startup_repository.dart';
 import 'package:flash_im/src/starter/view/splash_page.dart';
 import 'package:flash_im/src/home/view/home_page.dart';
-import 'package:flash_im/src/home/profile/set_password_page.dart';
 
 typedef OnStartupComplete = ValueChanged<StartupResult>;
 
@@ -34,10 +33,6 @@ GoRouter createRouter({
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: '/set-password',
-        builder: (context, state) => const SetPasswordPage(),
       ),
     ],
   );

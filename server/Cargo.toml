@@ -7,11 +7,15 @@ edition = "2021"
 members = [
     "modules/flash_core",
     "modules/flash_auth",
+    "modules/flash_user",
+    "modules/im-ws",
 ]
 
 [dependencies]
 flash_core = { path = "modules/flash_core" }
 flash_auth = { path = "modules/flash_auth" }
+flash_user = { path = "modules/flash_user" }
+im-ws = { path = "modules/im-ws" }
 axum = { version = "0.7", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

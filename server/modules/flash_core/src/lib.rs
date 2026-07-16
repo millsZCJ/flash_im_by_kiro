@@ -8,5 +8,5 @@ pub mod db;
 
 pub use config::Config;
 pub use model::User;
-pub use jwt::{Claims, generate_token, verify_token};
+pub use jwt::{Claims, generate_token, verify_token, extract_user_id};
 pub use db::{DbPool, DbError, create_pool};

@@ -1,6 +1,5 @@
 use sqlx::PgPool;
 use chrono::{DateTime, Utc};
-use flash_core::User;
 
 /// 短信验证码查询结果
 pub struct SmsCodeRow {
@@ -87,7 +86,7 @@ pub async fn find_or_create_user(
     .await?;
 
     let nickname = phone.to_string();
-    let avatar = format!("https://api.dicebear.com/7.x/thumbs/svg?seed={}", account_id);
+    let avatar = format!("identicon:{}", account_id);
     sqlx::query(
         "INSERT INTO user_profiles (account_id, nickname, avatar) VALUES ($1, $2, $3)",
     )
@@ -157,27 +156,4 @@ pub async fn update_password(
     .await?;
     Ok(())
 }
-
-/// 查询用户资料
-pub async fn get_user_profile(
-    pool: &PgPool,
-    account_id: i64,
-) -> Result<Option<User>, sqlx::Error> {
-    let row: Option<(i64, String, String, String)> = sqlx::query_as(
-        "SELECT a.id, c.identifier, up.nickname, up.avatar
-         FROM accounts a
-         JOIN user_profiles up  ON up.account_id = a.id
-         JOIN auth_credentials c ON c.account_id = a.id AND c.auth_type = 'phone'
-         WHERE a.id = $1 AND a.status = 0",
-    )
-    .bind(account_id)
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(row.map(|(user_id, phone, nickname, avatar)| User {
-        user_id,
-        phone,
-        nickname,
-        avatar,
-    }))
-}
+// 注：get_user_profile 已迁至 flash_user

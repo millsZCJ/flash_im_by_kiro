@@ -81,10 +81,10 @@ class AuthRepository {
     return (loginResult: loginResult, user: user);
   }
 
-  /// 设置密码
+  /// 设置密码（路径已迁移到 /user/password）
   Future<void> setPassword(String newPassword) async {
     await _dio.post(
-      '/auth/password',
+      '/user/password',
       data: {'new_password': newPassword},
     );
     // 更新本地 hasPassword 标记

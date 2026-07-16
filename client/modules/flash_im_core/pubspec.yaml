@@ -1,0 +1,17 @@
+name: flash_im_core
+description: Flash IM 核心模块 — WebSocket 通信与协议
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  protobuf: ^6.0.0
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  protoc_plugin: ^25.0.0

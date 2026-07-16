@@ -1,0 +1,5 @@
+#!/bin/bash
+# protoc-gen-dart 包装器：从 flash_im_core 包上下文运行 dart run，
+# 确保能解析 protoc_plugin 依赖。
+cd /Users/zcj/Documents/projects/flash_im_by_kiro/client/modules/flash_im_core
+exec dart run protoc_plugin:protoc_plugin "$@"

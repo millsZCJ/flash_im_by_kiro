@@ -71,17 +71,4 @@ fn test_login_response_serialization() {
     assert!(json.contains("\"is_new_user\":true"));
     assert!(json.contains("\"has_password\":false"));
 }
-
-#[test]
-fn test_password_request_deserialization() {
-    let json = "{\"new_password\":\"strong_password\"}";
-    let req: PasswordRequest = serde_json::from_str(json).expect("deserialize failed");
-    assert_eq!(req.new_password, "strong_password");
-}
-
-#[test]
-fn test_message_response_serialization() {
-    let resp = MessageResponse { message: "密码设置成功".to_string() };
-    let json = serde_json::to_string(&resp).expect("serialize failed");
-    assert!(json.contains("密码设置成功"));
-}
+// 注：PasswordRequest 和 MessageResponse 测试已迁至 flash_user

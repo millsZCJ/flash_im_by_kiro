@@ -1,15 +1,15 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     Json,
 };
 use rand::Rng;
 
-use flash_core::{generate_token, verify_token};
+use flash_core::generate_token;
 
 use crate::state::AuthState;
 use crate::models::{
-    LoginRequest, LoginResponse, LoginType, MessageResponse, PasswordRequest, SmsRequest,
+    LoginRequest, LoginResponse, LoginType, SmsRequest,
     SmsResponse,
 };
 use crate::service;
@@ -19,19 +19,6 @@ use crate::service;
 /// 校验手机号格式
 pub fn is_valid_phone(phone: &str) -> bool {
     phone.len() == 11 && phone.starts_with('1') && phone.chars().all(|c| c.is_ascii_digit())
-}
-
-/// 从 Authorization header 解析 Token，返回 account_id
-fn extract_user_id(headers: &HeaderMap, jwt_secret: &str) -> Result<i64, StatusCode> {
-    let token = headers
-        .get("Authorization")
-        .or_else(|| headers.get("authorization"))
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-
-    let claims = verify_token(token, jwt_secret).map_err(|_| StatusCode::UNAUTHORIZED)?;
-    claims.sub.parse::<i64>().map_err(|_| StatusCode::UNAUTHORIZED)
 }
 
 // ─── POST /auth/sms ───────────────────────────────────────────────────────────
@@ -186,62 +173,4 @@ async fn login_with_password(
         is_new_user: false,
         has_password: true,
     }))
-}
-
-// ─── POST /auth/password ──────────────────────────────────────────────────────
-
-pub async fn set_password(
-    State(state): State<AuthState>,
-    headers: HeaderMap,
-    Json(req): Json<PasswordRequest>,
-) -> Result<Json<MessageResponse>, StatusCode> {
-    let account_id = extract_user_id(&headers, &state.jwt_secret)?;
-
-    if req.new_password.len() < 6 {
-        println!("[AUTH] 密码长度不足：account_id={}", account_id);
-        return Err(StatusCode::BAD_REQUEST);
-    }
-
-    let hash = bcrypt::hash(&req.new_password, 10).map_err(|e| {
-        println!("[AUTH] 密码哈希失败：{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    match service::update_password(&state.db, account_id, &hash).await {
-        Ok(()) => {
-            println!("[AUTH] 密码设置成功：account_id={}", account_id);
-            Ok(Json(MessageResponse { message: "密码设置成功".to_string() }))
-        }
-        Err(e) => {
-            println!("[AUTH] 更新密码失败：{}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-}
-
-// ─── GET /user/profile ────────────────────────────────────────────────────────
-
-pub async fn profile(
-    State(state): State<AuthState>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, StatusCode> {
-    let account_id = extract_user_id(&headers, &state.jwt_secret)?;
-
-    let user = service::get_user_profile(&state.db, account_id).await.map_err(|e| {
-        println!("[USER] 查询用户资料失败：{}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    match user {
-        Some(u) => Ok(Json(serde_json::json!({
-            "user_id": u.user_id.to_string(),
-            "phone": u.phone,
-            "nickname": u.nickname,
-            "avatar": u.avatar,
-        }))),
-        None => {
-            println!("[USER] 用户不存在：account_id={}", account_id);
-            Err(StatusCode::NOT_FOUND)
-        }
-    }
 }
